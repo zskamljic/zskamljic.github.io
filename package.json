@@ -10,9 +10,13 @@
   },
   "dependencies": {
     "bootstrap": "^5.3.2",
+    "date-fns": "^2.30.0",
+    "gray-matter": "^4.0.3",
     "next": "latest",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "remark": "^14.0.1",
+    "remark-html": "^14.0.0"
   },
   "devDependencies": {
     "@types/node": "latest",
