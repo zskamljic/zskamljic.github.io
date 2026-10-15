@@ -75,20 +75,36 @@ jobs:
       - name: Build with Next.js
         run: ${{ steps.detect-package-manager.outputs.runner }} next build
 
-      # CoinApp is a separate repository. It is checked out into its own folder
-      # so the blog repo stays free of Angular sources, and built with a base href
-      # matching the /coinapp prefix it will be served from.
+      # CoinApp lives in its own repository, which is deliberately private, and
+      # is checked out into its own folder so this repo stays free of Angular
+      # sources.
+      #
+      # It needs a token: a workflow's GITHUB_TOKEN can only read the repository
+      # the workflow runs in, so a cross-repo checkout of a private repo 404s.
+      # Create a fine-grained token with read-only "Contents" access to
+      # zskamljic/coinapp-web and save it here as the repository secret
+      # COINAPP_TOKEN (Settings -> Secrets and variables -> Actions).
+      - name: Check CoinApp token
+        env:
+          COINAPP_TOKEN: ${{ secrets.COINAPP_TOKEN }}
+        run: |
+          if [ -z "$COINAPP_TOKEN" ]; then
+            echo "::error::Repository secret COINAPP_TOKEN is not set. Create a fine-grained token with read-only Contents access to zskamljic/coinapp-web and add it under Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
       - name: Checkout CoinApp
         uses: actions/checkout@v4
         with:
           repository: zskamljic/coinapp-web
           path: coinapp-web
           ref: ${{ env.COINAPP_REF }}
+          token: ${{ secrets.COINAPP_TOKEN }}
       - name: Install CoinApp dependencies
         working-directory: coinapp-web
         run: npm ci
       - name: Build CoinApp
         working-directory: coinapp-web
+        # base-href must match the /coinapp prefix this app is served from.
         run: npx --no-install ng build --base-href=${{ env.APP_PREFIX }}/
 
       # Moves the Next export down into out/blog, copies CoinApp into out/coinapp,
