@@ -25,6 +25,12 @@ env:
   # next.config.js and the --base-href below.
   BLOG_PREFIX: /blog
   APP_PREFIX: /coinapp
+  # Which coinapp-web revision to build. This has to come from the event payload
+  # and not the `inputs` context: that context only exists for workflow_dispatch
+  # and workflow_call, and referencing it on a push fails the job at "Set up
+  # job" with "Unrecognized named-value: 'inputs'". Empty means the default
+  # branch, which is what a plain push wants.
+  COINAPP_REF: ${{ github.event.inputs.coinapp_ref }}
 
 jobs:
   build:
@@ -77,7 +83,7 @@ jobs:
         with:
           repository: zskamljic/coinapp-web
           path: coinapp-web
-          ref: ${{ inputs.coinapp_ref || '' }}
+          ref: ${{ env.COINAPP_REF }}
       - name: Install CoinApp dependencies
         working-directory: coinapp-web
         run: npm ci
