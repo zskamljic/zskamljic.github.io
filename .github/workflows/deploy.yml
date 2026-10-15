@@ -1,9 +1,14 @@
-name: Deploy Next.js site to Pages
+name: Deploy blog and CoinApp to Pages
 
 on:
   push:
     branches: ["master"]
   workflow_dispatch:
+    inputs:
+      coinapp_ref:
+        description: "coinapp-web branch/tag to build (defaults to the default branch)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -14,11 +19,18 @@ concurrency:
   group: "pages"
   cancel-in-progress: false
 
+env:
+  # Both apps are served from this one Pages site, so these prefixes are fixed:
+  # the blog at /blog, CoinApp at /coinapp. They must match basePath in
+  # next.config.js and the --base-href below.
+  BLOG_PREFIX: /blog
+  APP_PREFIX: /coinapp
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout blog
         uses: actions/checkout@v3
       - name: Detect package manager
         id: detect-package-manager
@@ -56,6 +68,28 @@ jobs:
         run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
       - name: Build with Next.js
         run: ${{ steps.detect-package-manager.outputs.runner }} next build
+
+      # CoinApp is a separate repository. It is checked out into its own folder
+      # so the blog repo stays free of Angular sources, and built with a base href
+      # matching the /coinapp prefix it will be served from.
+      - name: Checkout CoinApp
+        uses: actions/checkout@v3
+        with:
+          repository: zskamljic/coinapp-web
+          path: coinapp-web
+          ref: ${{ inputs.coinapp_ref || '' }}
+      - name: Install CoinApp dependencies
+        working-directory: coinapp-web
+        run: npm ci
+      - name: Build CoinApp
+        working-directory: coinapp-web
+        run: npx --no-install ng build --base-href=${{ env.APP_PREFIX }}/
+
+      # Moves the Next export down into out/blog, copies CoinApp into out/coinapp,
+      # writes the root redirect and the shared 404.html fallback.
+      - name: Assemble site
+        run: node scripts/assemble-site.mjs ./out ./coinapp-web/dist/coinapp-web/browser
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1
         with:
